@@ -2,9 +2,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import dynamic from 'next/dynamic'
 import AppLayout from '@/components/layout/AppLayout'
 import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
+
+// Dynamically import QR scanner to avoid SSR issues
+const QRScanner = dynamic(() => import('@/components/ui/QRScanner'), { ssr: false })
 
 type Step = 'search' | 'amount' | 'mpin' | 'success'
 
@@ -77,7 +81,6 @@ function MpinInput({ value, onChange }: { value: string; onChange: (v: string) =
           value={digits[i] !== ' ' ? digits[i] : ''}
           onChange={(e) => handleInput(i, e)}
           onKeyDown={(e) => handleKey(i, e)}
-          onFocus={() => {}}
           className="w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:outline-none focus:border-brand-500 transition-colors bg-gray-50 focus:bg-white"
           style={{ borderColor: digits[i] !== ' ' && digits[i] ? '#1a8456' : undefined }}
         />
@@ -98,11 +101,11 @@ export default function SendPage() {
   const [mpin, setMpin] = useState('')
   const [sending, setSending] = useState(false)
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
   const searchTimer = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => { if (!token) router.replace('/login') }, [token, router])
 
-  // Auto search with debounce
   useEffect(() => {
     if (query.length < 3) { setReceiver(null); return }
     if (searchTimer.current) clearTimeout(searchTimer.current)
@@ -118,6 +121,12 @@ export default function SendPage() {
       }
     }, 500)
   }, [query])
+
+  const handleQRScan = (upiId: string) => {
+    setShowScanner(false)
+    setQuery(upiId)
+    toast.success(`QR scanned: ${upiId}`)
+  }
 
   const handleSend = async () => {
     if (mpin.length !== 6) { toast.error('Enter your 6-digit MPIN'); return }
@@ -156,6 +165,15 @@ export default function SendPage() {
   return (
     <AppLayout>
       <div className="max-w-md mx-auto p-4 md:p-8 animate-fade-in">
+
+        {/* QR Scanner Modal */}
+        {showScanner && (
+          <QRScanner
+            onScan={handleQRScan}
+            onClose={() => setShowScanner(false)}
+          />
+        )}
+
         <div className="flex items-center gap-3 mb-6">
           {step !== 'search' && step !== 'success' && (
             <button onClick={() => setStep(step === 'mpin' ? 'amount' : 'search')}
@@ -194,6 +212,23 @@ export default function SendPage() {
               </div>
             </div>
 
+            {/* QR Scanner Button */}
+            <button
+              onClick={() => setShowScanner(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-dashed border-brand-200 text-brand-600 hover:bg-brand-50 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-sm font-medium">Scan QR Code</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-xs text-gray-400">or enter manually above</span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+
             {receiver && (
               <div className="border border-brand-100 bg-brand-50 rounded-xl p-4 flex items-center gap-3 animate-slide-up">
                 <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center font-semibold text-brand-700 flex-shrink-0">
@@ -203,9 +238,7 @@ export default function SendPage() {
                   <p className="text-sm font-semibold text-gray-900">{receiver.name}</p>
                   <p className="text-xs text-gray-500 font-mono truncate">{receiver.upiId}</p>
                 </div>
-                <button
-                  onClick={() => setStep('amount')}
-                  className="btn-primary text-sm px-4 py-2">
+                <button onClick={() => setStep('amount')} className="btn-primary text-sm px-4 py-2">
                   Pay
                 </button>
               </div>
