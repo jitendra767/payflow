@@ -1,18 +1,23 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 
 export default function Home() {
   const router = useRouter()
   const { user } = useAuthStore()
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    if (user) {
-      router.replace('/dashboard')
-    } else {
-      router.replace('/login')
-    }
+    const timer = setTimeout(() => {
+      if (user) {
+        router.replace('/dashboard')
+      } else {
+        router.replace('/login')
+      }
+      setChecking(false)
+    }, 500)
+    return () => clearTimeout(timer)
   }, [user, router])
 
   return (
