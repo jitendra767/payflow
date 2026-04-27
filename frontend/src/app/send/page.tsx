@@ -8,7 +8,7 @@ import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
 
 // Dynamically import QR scanner to avoid SSR issues
-const QRScanner = dynamic(() => import('@/components/ui/QRScanner'), { ssr: false })
+const QRScanner = dynamic(() => import('@/components/layout/ui/QRScanner'), { ssr: false })
 
 type Step = 'search' | 'amount' | 'mpin' | 'success'
 
